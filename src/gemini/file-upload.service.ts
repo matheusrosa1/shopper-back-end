@@ -8,7 +8,7 @@ export class FileUploadService {
   private fileManager: GoogleAIFileManager;
 
   constructor() {
-    this.fileManager = new GoogleAIFileManager(process.env.API_KEY);
+    this.fileManager = new GoogleAIFileManager(process.env.GEMINI_API_KEY);
   }
 
   async uploadBase64Image(
