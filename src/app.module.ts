@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MeasureModule } from './measure/measure.module';
+import { GeminiService } from './gemini/analyze-image.service';
 
 @Module({
   imports: [
@@ -24,6 +25,6 @@ import { MeasureModule } from './measure/measure.module';
     MeasureModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, GeminiService],
 })
 export class AppModule {}
