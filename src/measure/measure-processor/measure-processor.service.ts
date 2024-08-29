@@ -11,7 +11,7 @@ export class MeasureProcessorService {
     @InjectRepository(Measure)
     private readonly measureRepository: Repository<Measure>,
     private readonly fileUploadService: FileUploadService,
-    private readonly geminiService: AnalyseService,
+    private readonly analyseService: AnalyseService,
   ) {}
 
   async uploadImageAndProcessMeasure(
@@ -48,6 +48,40 @@ export class MeasureProcessorService {
           HttpStatus.CONFLICT,
         );
       }
-    } catch (error) {}
+      const imageUrl = await this.fileUploadService.uploadBase64Image(
+        base64Image,
+        customerCode,
+        measureDatetime,
+      );
+
+      // Analisa a imagem
+      const measureValue = await this.analyseService.analyzeImage(imageUrl);
+
+      // Salva a medição no banco de dados
+      const newMeasure = this.measureRepository.create({
+        customerCode,
+        measureDatetime,
+        measureType,
+        imageUrl,
+        measureValue,
+        hasConfirmed: false,
+      });
+      const savedMeasure = await this.measureRepository.save(newMeasure);
+
+      return {
+        image_url: imageUrl,
+        measure_value: measureValue,
+        measure_uuid: savedMeasure.measureUuid,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      } else {
+        throw new HttpException(
+          'Failed to process image',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    }
   }
 }
