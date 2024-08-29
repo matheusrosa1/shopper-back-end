@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MeasureProcessorService } from './measure-processor.service';
+import { MeasureProcessorService } from '../measure-processor.service';
 
 describe('MeasureProcessorService', () => {
   let service: MeasureProcessorService;
