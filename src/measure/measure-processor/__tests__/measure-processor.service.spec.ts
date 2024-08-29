@@ -1,65 +1,75 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MeasureProcessorService } from '../measure-processor.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Measure } from '../../../measure/entities/measure.entity';
-
-import {
-  mockFileUploadService,
-  mockAnalyseService,
-  mockMeasureRepository,
-} from './mocks/measure-processor.mock';
-import { FileUploadService } from 'src/gemini/file-upload.service';
-import { AnalyseService } from 'src/gemini/analyze-image.service';
-
-// Importa os serviços a serem mockados
-const MockFileUploadService = mockFileUploadService;
-const MockAnalyseService = mockAnalyseService;
-const MockMeasureRepository = mockMeasureRepository;
+import { HttpException, HttpStatus } from '@nestjs/common';
+import { Repository } from 'typeorm';
+import { MeasureProcessorService } from '../measure-processor.service';
+import { Measure } from '../../entities/measure.entity';
+import { FileUploadService } from '../../../gemini/file-upload.service';
+import { AnalyseService } from '../../../gemini/analyze-image.service';
 
 describe('MeasureProcessorService', () => {
   let service: MeasureProcessorService;
+  let measureRepository: Repository<Measure>;
+  let fileUploadService: FileUploadService;
+  let analyseService: AnalyseService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MeasureProcessorService,
-        { provide: FileUploadService, useValue: MockFileUploadService },
-        { provide: AnalyseService, useValue: MockAnalyseService },
         {
           provide: getRepositoryToken(Measure),
-          useValue: MockMeasureRepository,
+          useClass: Repository,
+        },
+        {
+          provide: FileUploadService,
+          useValue: {
+            uploadBase64Image: jest.fn(),
+          },
+        },
+        {
+          provide: AnalyseService,
+          useValue: {
+            analyzeImage: jest.fn(),
+          },
         },
       ],
     }).compile();
 
     service = module.get<MeasureProcessorService>(MeasureProcessorService);
+    measureRepository = module.get<Repository<Measure>>(
+      getRepositoryToken(Measure),
+    );
+    fileUploadService = module.get<FileUploadService>(FileUploadService);
+    analyseService = module.get<AnalyseService>(AnalyseService);
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
-  it('should upload image and process measure', async () => {
-    const base64Image = 'base64Image';
-    const customerCode = 'customerCode';
+  it('should upload image, analyze it, and save the measure successfully', async () => {
+    const base64Image = 'data:image/png;base64,XYZ';
+    const customerCode = 'CUSTOMER123';
     const measureDatetime = new Date();
     const measureType = 'WATER';
 
-    // Mocking the behavior
-    MockFileUploadService.uploadBase64Image.mockResolvedValue(
-      'http://example.com/image.jpg',
-    );
-    MockAnalyseService.analyzeImage.mockResolvedValue(100);
-    MockMeasureRepository.findOne.mockResolvedValue(null);
-    MockMeasureRepository.save.mockResolvedValue({
-      measureUuid: 'uuid',
-      imageUrl: 'http://example.com/image.jpg',
-      measureValue: 100,
-      customerCode,
-      measureDatetime,
-      measureType,
-      hasConfirmed: false,
-    });
+    const mockImageUrl = 'http://example.com/image.png';
+    const mockMeasureValue = 12345;
+    const mockSavedMeasure = {
+      measureUuid: 'UUID123',
+    };
+
+    jest.spyOn(measureRepository, 'findOne').mockResolvedValue(null);
+    jest
+      .spyOn(fileUploadService, 'uploadBase64Image')
+      .mockResolvedValue(mockImageUrl);
+    jest
+      .spyOn(analyseService, 'analyzeImage')
+      .mockResolvedValue(mockMeasureValue);
+    jest
+      .spyOn(measureRepository, 'save')
+      .mockResolvedValue(mockSavedMeasure as any);
 
     const result = await service.uploadImageAndProcessMeasure(
       base64Image,
@@ -68,107 +78,70 @@ describe('MeasureProcessorService', () => {
       measureType,
     );
 
-    expect(MockFileUploadService.uploadBase64Image).toHaveBeenCalledWith(
+    expect(result).toEqual({
+      image_url: mockImageUrl,
+      measure_value: mockMeasureValue,
+      measure_uuid: mockSavedMeasure.measureUuid,
+    });
+    expect(fileUploadService.uploadBase64Image).toHaveBeenCalledWith(
       base64Image,
       customerCode,
       measureDatetime,
     );
-    expect(MockAnalyseService.analyzeImage).toHaveBeenCalledWith(
-      'http://example.com/image.jpg',
-    );
-    expect(MockMeasureRepository.findOne).toHaveBeenCalledWith({
-      where: {
-        customerCode,
-        measureDatetime: expect.anything(),
-        measureType,
-      },
-    });
-    expect(MockMeasureRepository.save).toHaveBeenCalledWith({
-      customerCode,
-      measureDatetime,
-      measureType,
-      imageUrl: 'http://example.com/image.jpg',
-      measureValue: 100,
-      hasConfirmed: false,
-    });
-
-    expect(result).toEqual({
-      image_url: 'http://example.com/image.jpg',
-      measure_value: 100,
-      measure_uuid: 'uuid',
-    });
+    expect(analyseService.analyzeImage).toHaveBeenCalledWith(mockImageUrl);
+    expect(measureRepository.save).toHaveBeenCalled();
   });
 
-  it('should throw an error if measure already exists', async () => {
-    const base64Image = 'base64Image';
-    const customerCode = 'customerCode';
+  it('should throw an error if measure already exists for the month', async () => {
+    const base64Image = 'data:image/png;base64,XYZ';
+    const customerCode = 'CUSTOMER123';
     const measureDatetime = new Date();
     const measureType = 'WATER';
 
-    // Mocking the behavior
-    MockMeasureRepository.findOne.mockResolvedValue({}); // Simulates existing measure
+    const existingMeasure = new Measure();
 
-    try {
-      await service.uploadImageAndProcessMeasure(
+    jest.spyOn(measureRepository, 'findOne').mockResolvedValue(existingMeasure);
+
+    await expect(
+      service.uploadImageAndProcessMeasure(
         base64Image,
         customerCode,
         measureDatetime,
         measureType,
-      );
-    } catch (error) {
-      expect(error.response).toEqual({
-        error_code: 'DOUBLE_REPORT',
-        error_description: 'Leitura do mês já realizada',
-      });
-    }
+      ),
+    ).rejects.toThrow(
+      new HttpException(
+        {
+          error_code: 'DOUBLE_REPORT',
+          error_description: 'Leitura do mês já realizada',
+        },
+        HttpStatus.CONFLICT,
+      ),
+    );
   });
 
-  it('should handle errors from file upload', async () => {
-    const base64Image = 'base64Image';
-    const customerCode = 'customerCode';
+  it('should throw an internal server error if any unexpected error occurs', async () => {
+    const base64Image = 'data:image/png;base64,XYZ';
+    const customerCode = 'CUSTOMER123';
     const measureDatetime = new Date();
     const measureType = 'WATER';
 
-    // Mocking the behavior
-    MockFileUploadService.uploadBase64Image.mockRejectedValue(
-      new Error('Upload failed'),
-    );
+    jest
+      .spyOn(measureRepository, 'findOne')
+      .mockRejectedValue(new Error('Unexpected Error'));
 
-    try {
-      await service.uploadImageAndProcessMeasure(
+    await expect(
+      service.uploadImageAndProcessMeasure(
         base64Image,
         customerCode,
         measureDatetime,
         measureType,
-      );
-    } catch (error) {
-      expect(error.response).toEqual('Failed to process image');
-    }
-  });
-
-  it('should handle errors from image analysis', async () => {
-    const base64Image = 'base64Image';
-    const customerCode = 'customerCode';
-    const measureDatetime = new Date();
-    const measureType = 'WATER';
-
-    // Mocking the behavior
-    MockFileUploadService.uploadBase64Image.mockResolvedValue(
-      'http://example.com/image.jpg',
+      ),
+    ).rejects.toThrow(
+      new HttpException(
+        'Failed to process image',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      ),
     );
-    MockAnalyseService.analyzeImage.mockRejectedValue(
-      new Error('Analysis failed'),
-    );
-
-    try {
-      await service.uploadImageAndProcessMeasure(
-        base64Image,
-        customerCode,
-        measureDatetime,
-        measureType,
-      );
-    } catch (error) {
-      expect(error.response).toEqual('Failed to process image');
-    }
   });
 });

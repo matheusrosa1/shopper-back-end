@@ -10,7 +10,7 @@ import {
 import { MeasureService } from './measure.service';
 import { MeasureProcessorService } from './measure-processor/measure-processor.service';
 
-@Controller('measure')
+@Controller()
 export class MeasureController {
   constructor(
     private readonly measureService: MeasureService,
@@ -21,40 +21,40 @@ export class MeasureController {
   async uploadImageAndProcessMeasure(
     @Body()
     body: {
-      base64Image: string;
-      customerCode: string;
-      measureDatetime: Date;
-      measureType: 'WATER' | 'GAS';
+      image: string;
+      customer_code: string;
+      measure_datetime: Date;
+      measure_type: 'WATER' | 'GAS';
     },
   ) {
-    const { base64Image, customerCode, measureDatetime, measureType } = body;
+    const { image, customer_code, measure_datetime, measure_type } = body;
     return await this.measureProcessorService.uploadImageAndProcessMeasure(
-      base64Image,
-      customerCode,
-      measureDatetime,
-      measureType,
+      image,
+      customer_code,
+      measure_datetime,
+      measure_type,
     );
   }
 
   @Patch('confirm')
   async confirmMeasure(
-    @Body() body: { measureUuid: string; confirmedValue: number },
+    @Body() body: { measure_uuid: string; confirmed_value: number },
   ) {
-    const { measureUuid, confirmedValue } = body;
+    const { measure_uuid, confirmed_value } = body;
     return await this.measureService.confirmMeasure(
-      measureUuid,
-      confirmedValue,
+      measure_uuid,
+      confirmed_value,
     );
   }
 
-  @Get(':customerCode/list')
+  @Get(':customer_code/list')
   async listMeasures(
-    @Param('customerCode') customerCode: string,
-    @Query('type') measureType?: 'WATER' | 'GAS',
+    @Param('customer_code') customer_code: string,
+    @Query('measure_type') measure_type?: 'WATER' | 'GAS',
   ) {
     return await this.measureService.getMeasuresByCustomerCode(
-      customerCode,
-      measureType,
+      customer_code,
+      measure_type,
     );
   }
 }

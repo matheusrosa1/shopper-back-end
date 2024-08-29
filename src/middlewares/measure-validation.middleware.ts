@@ -9,11 +9,10 @@ import { Request, Response, NextFunction } from 'express';
 @Injectable()
 export class MeasureValidationMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
-    const { base64Image, customerCode, measureDatetime, measureType } =
-      req.body;
+    const { image, customer_code, measure_datetime, measure_type } = req.body;
 
     // Validar measureType
-    if (measureType !== 'WATER' && measureType !== 'GAS') {
+    if (measure_type !== 'WATER' || measure_type !== 'GAS') {
       throw new HttpException(
         {
           error_code: 'INVALID_DATA',
@@ -25,10 +24,7 @@ export class MeasureValidationMiddleware implements NestMiddleware {
     }
 
     // Validar base64Image
-    if (
-      typeof base64Image !== 'string' ||
-      !base64Image.startsWith('data:image/')
-    ) {
+    if (typeof image !== 'string' || !image.startsWith('data:image/')) {
       throw new HttpException(
         {
           error_code: 'INVALID_DATA',
@@ -39,7 +35,7 @@ export class MeasureValidationMiddleware implements NestMiddleware {
     }
 
     // Validar customerCode
-    if (typeof customerCode !== 'string' || customerCode.trim() === '') {
+    if (typeof customer_code !== 'string' || customer_code.trim() === '') {
       throw new HttpException(
         {
           error_code: 'INVALID_DATA',
@@ -52,8 +48,8 @@ export class MeasureValidationMiddleware implements NestMiddleware {
 
     // Validar measureDatetime
     if (
-      !(measureDatetime instanceof Date) ||
-      isNaN(measureDatetime.getTime())
+      !(measure_datetime instanceof Date) ||
+      isNaN(measure_datetime.getTime())
     ) {
       throw new HttpException(
         {
