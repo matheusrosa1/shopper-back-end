@@ -2,7 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 @Injectable()
-export class GeminiService {
+export class AnalyseService {
   private genAI: GoogleGenerativeAI;
 
   constructor() {

@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Measure } from './entities/measure.entity';
 import { FileUploadService } from 'src/gemini/file-upload.service';
-import { GeminiService } from '../gemini/analyze-image.service';
+import { AnalyseService } from '../gemini/analyze-image.service';
 
 @Injectable()
 export class MeasureService {
@@ -11,7 +11,7 @@ export class MeasureService {
     @InjectRepository(Measure)
     private readonly measureRepository: Repository<Measure>,
     private readonly fileUploadService: FileUploadService,
-    private readonly geminiService: GeminiService,
+    private readonly geminiService: AnalyseService,
   ) {}
 
   async uploadImageAndSaveMeasure(
