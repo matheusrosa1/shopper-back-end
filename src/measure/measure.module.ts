@@ -9,10 +9,7 @@ import { Measure } from './entities/measure.entity';
 import { GeminiModule } from 'src/gemini/gemini.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Measure]), // Adicione esta linha para fornecer o MeasureRepository
-    GeminiModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Measure]), GeminiModule],
   controllers: [MeasureController],
   providers: [MeasureService, MeasureProcessorService],
 })

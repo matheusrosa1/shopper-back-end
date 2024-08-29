@@ -4,6 +4,6 @@ import { AnalyseService } from './analyze-image.service';
 
 @Module({
   providers: [FileUploadService, AnalyseService],
-  exports: [FileUploadService, AnalyseService], // Exporta os serviços para uso em outros módulos
+  exports: [FileUploadService, AnalyseService],
 })
 export class GeminiModule {}
