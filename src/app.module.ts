@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { MeasureModule } from './measure/measure.module';
 import { AnalyseService } from './gemini/analyze-image.service';
 import { FileUploadService } from './gemini/file-upload.service';
+import { GeminiModule } from './gemini/gemini.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { FileUploadService } from './gemini/file-upload.service';
       migrationsRun: true,
     }),
     MeasureModule,
+    GeminiModule,
   ],
   controllers: [AppController],
   providers: [AppService, AnalyseService, FileUploadService],

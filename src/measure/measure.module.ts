@@ -6,10 +6,12 @@ import { MeasureValidationMiddleware } from 'src/middlewares/measure-validation.
 import { ConfirmeValueValidationMiddleware } from 'src/middlewares/confirm-measure-validation.middleware';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Measure } from './entities/measure.entity';
+import { GeminiModule } from 'src/gemini/gemini.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Measure]), // Adicione esta linha para fornecer o MeasureRepository
+    GeminiModule,
   ],
   controllers: [MeasureController],
   providers: [MeasureService, MeasureProcessorService],
