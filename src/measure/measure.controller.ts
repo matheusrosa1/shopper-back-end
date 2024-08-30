@@ -28,6 +28,7 @@ export class MeasureController {
     },
   ) {
     const { image, customer_code, measure_datetime, measure_type } = body;
+    /*     console.log(customer_code, typeof measure_datetime, measure_type); */
     return await this.measureProcessorService.uploadImageAndProcessMeasure(
       image,
       customer_code,

@@ -2,7 +2,7 @@ import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('measures')
 export class Measure {
-  @PrimaryGeneratedColumn('uuid', { name: 'measure_id' })
+  @PrimaryGeneratedColumn('uuid', { name: 'measure_uuid' })
   measureUuid: string;
 
   @Column({ name: 'image_url', nullable: false })
