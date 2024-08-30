@@ -1,30 +1,37 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class AnalyseService {
+export class AnalyzeService {
   private genAI: GoogleGenerativeAI;
+  private model: any;
 
-  constructor() {
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  constructor(private configService: ConfigService) {
+    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   }
 
-  async analyzeImage(imageUrl: string): Promise<any> {
+  async analyzeImage(image: string): Promise<number> {
     try {
-      const model = this.genAI.getGenerativeModel({
-        model: 'gemini-1.5-flask',
-      });
+      const fileToGenerativePart = {
+        inlineData: {
+          data: image,
+          mimeType: 'image/jpeg',
+        },
+      };
+      const prompt = 'What was the consumption for the month? Just the number';
+      const result = await this.model.generateContent([
+        prompt,
+        fileToGenerativePart,
+      ]);
 
-      const result = await model.generateContent([imageUrl]);
-
-      const response = result.response;
-
-      return response.text;
-    } catch {
-      throw new HttpException(
-        'Failed to analyze image',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      const measureValue = parseInt(result.response.text(), 10);
+      return measureValue;
+    } catch (error) {
+      console.error('Erro ao analisar a imagem:', error);
+      throw new Error('Erro ao processar a imagem');
     }
   }
 }

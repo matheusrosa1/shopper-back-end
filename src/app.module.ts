@@ -4,7 +4,7 @@ import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MeasureModule } from './measure/measure.module';
-import { AnalyseService } from './gemini/analyze-image.service';
+import { AnalyzeService } from './gemini/analyze-image.service';
 import { FileUploadService } from './gemini/file-upload.service';
 import { GeminiModule } from './gemini/gemini.module';
 
@@ -28,6 +28,6 @@ import { GeminiModule } from './gemini/gemini.module';
     GeminiModule,
   ],
   controllers: [AppController],
-  providers: [AppService, AnalyseService, FileUploadService],
+  providers: [AppService, AnalyzeService, FileUploadService],
 })
 export class AppModule {}
