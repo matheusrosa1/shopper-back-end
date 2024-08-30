@@ -5,7 +5,15 @@ import { MeasureService } from '../measure.service';
 import { Measure } from '../entities/measure.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as uuid from 'uuid';
+import {
+  base64Decode,
+  getMimeType,
+  getMimeTypeFromBase64,
+  MimeTypeIsValid,
+} from 'src/utils/gemini-utils';
+import { v4 as uuidv4 } from 'uuid';
+/* import fs from 'fs'; */
+import * as path from 'path';
 
 @Injectable()
 export class UploadMeasureService {
@@ -17,8 +25,10 @@ export class UploadMeasureService {
     @InjectRepository(Measure)
     private readonly measureRepository: Repository<Measure>,
   ) {
-    this.fileManager = new GoogleAIFileManager(process.env.GEMINI_API_KEY);
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    /*     this.fileManager = new GoogleAIFileManager(
+      process.env.GEMINI_API_KEY ?? '',
+    ); */
+    /*     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? ''); */
   }
 
   async processAndSaveMeasure(
@@ -32,6 +42,13 @@ export class UploadMeasureService {
     measure_uuid: string;
   }> {
     // Verificar se já existe uma leitura no mês para o tipo de medida
+
+    const fileManager = new GoogleAIFileManager(
+      process.env.GEMINI_API_KEY ?? '',
+    );
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '');
+
     const existingMeasure = await this.measureService.checkExistingMeasure(
       customerCode,
       measureDatetime,
@@ -47,53 +64,77 @@ export class UploadMeasureService {
         HttpStatus.CONFLICT,
       );
     }
+    try {
+      const mimeType = getMimeTypeFromBase64(base64Image);
 
-    // Remover o cabeçalho 'data:image/jpeg;base64,' ou similar
-    const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
-    /*     const buffer = Buffer.from(base64Data, 'base64'); */
-    /*   const base64String = buffer.toString('base64');  */ // Convertendo de volta para uma string base64 */
+      if (!MimeTypeIsValid(mimeType)) {
+        throw new HttpException(
+          {
+            error_code: 'INVALID_DATA',
+            error_description: 'Tipo de imagem não suportado',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-    // Fazer o upload da imagem
-    const uploadResponse = await this.fileManager.uploadFile(base64Data, {
-      mimeType: 'image/jpeg', // Ajuste conforme necessário
-      displayName: 'Uploaded Image',
-    });
+      const fileExtension = getMimeType(mimeType);
+      const fileName = `${customerCode}-${Date.now()}.${fileExtension}`;
+      const pathname = path.join(__dirname, '../../../uploads', fileName);
 
-    const fileUri = uploadResponse.file.uri;
+      base64Decode(base64Image.split(';base64,').pop() ?? '', pathname);
 
-    // Integre com a API LLM para extrair o valor da imagem
-    const model = this.genAI.getGenerativeModel({
-      model: 'gemini-1.5-pro',
-    });
+      const uploadResponse = await fileManager.uploadFile(pathname, {
+        mimeType,
+        displayName: 'Uploaded Image',
+      });
 
-    const result = await model.generateContent([
-      {
-        fileData: {
-          mimeType: uploadResponse.file.mimeType,
-          fileUri: fileUri,
+      /*       fs.unlinkSync(pathname); */
+
+      const fileUri = uploadResponse.file.uri;
+
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-1.5-flash',
+      });
+
+      const result = await model.generateContent([
+        {
+          fileData: {
+            mimeType: uploadResponse.file.mimeType,
+            fileUri: fileUri,
+          },
         },
-      },
-      { text: 'Extract the numerical value from this image.' },
-    ]);
+        { text: 'Extrair o valor numérico desta imagem.' },
+      ]);
 
-    const extractedValue = parseInt(result.response.text(), 10);
+      const extractedValue = parseInt(result.response.text(), 10);
 
-    // Criar a nova medida
-    const newMeasure = this.measureRepository.create({
-      customerCode,
-      measureDatetime,
-      measureType,
-      measureValue: extractedValue,
-      imageUrl: fileUri,
-      measureUuid: uuid.v4(),
-    });
+      // Criar a nova medida
+      const measureUuid = uuidv4();
+      const newMeasure = this.measureRepository.create({
+        customerCode,
+        measureDatetime,
+        measureType,
+        measureValue: extractedValue,
+        measureUuid,
+        imageUrl: fileUri,
+      });
 
-    const savedMeasure = await this.measureRepository.save(newMeasure);
+      const savedMeasure = await this.measureRepository.save(newMeasure);
 
-    return {
-      measure_value: savedMeasure.measureValue,
-      image_url: savedMeasure.imageUrl,
-      measure_uuid: savedMeasure.measureUuid,
-    };
+      return {
+        measure_value: savedMeasure.measureValue,
+        image_url: savedMeasure.imageUrl,
+        measure_uuid: savedMeasure.measureUuid,
+      };
+    } catch (error) {
+      console.error('Error processing measure:', error);
+      throw new HttpException(
+        {
+          error_code: 'INTERNAL_ERROR',
+          error_description: 'Erro ao processar a medição',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }
