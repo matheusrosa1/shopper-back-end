@@ -4,8 +4,6 @@ import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MeasureModule } from './measure/measure.module';
-/* import { GeminiModule } from './gemini/gemini.module'; */
-import { Measure } from './measure/entities/measure.entity';
 
 @Module({
   imports: [
