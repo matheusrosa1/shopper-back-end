@@ -3,7 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-/* import { MeasureModule } from './measure/measure.module'; */
+import { MeasureModule } from './measure/measure.module';
 /* import { GeminiModule } from './gemini/gemini.module'; */
 import { Measure } from './measure/entities/measure.entity';
 
@@ -23,7 +23,7 @@ import { Measure } from './measure/entities/measure.entity';
       migrations: [`${__dirname}/migrations/*{.ts,.js}`],
       migrationsRun: true,
     }),
-    TypeOrmModule.forFeature([Measure]),
+    MeasureModule,
   ],
   controllers: [AppController],
   providers: [AppService],
