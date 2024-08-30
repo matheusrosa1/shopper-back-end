@@ -8,33 +8,18 @@ import {
   Query,
 } from '@nestjs/common';
 import { MeasureService } from './measure.service';
-import { MeasureProcessorService } from './measure-processor/measure-processor.service';
+import { UploadMeasureService } from './upload-measure/upload-measure.service';
 
 @Controller()
 export class MeasureController {
   constructor(
     private readonly measureService: MeasureService,
-    private readonly measureProcessorService: MeasureProcessorService,
+    private readonly uploadMeasureService: UploadMeasureService,
   ) {}
 
   @Post('upload')
-  async uploadImageAndProcessMeasure(
-    @Body()
-    body: {
-      image: string;
-      customer_code: string;
-      measure_datetime: Date;
-      measure_type: 'WATER' | 'GAS';
-    },
-  ) {
-    const { image, customer_code, measure_datetime, measure_type } = body;
-    /*     console.log(customer_code, typeof measure_datetime, measure_type); */
-    return await this.measureProcessorService.uploadImageAndProcessMeasure(
-      image,
-      customer_code,
-      measure_datetime,
-      measure_type,
-    );
+  async uploadMeasure(@Body() data: any) {
+    return this.uploadMeasureService.processAndSaveMeasure(data);
   }
 
   @Patch('confirm')

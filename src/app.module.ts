@@ -3,10 +3,9 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { MeasureModule } from './measure/measure.module';
-import { AnalyzeService } from './gemini/analyze-image.service';
-import { FileUploadService } from './gemini/file-upload.service';
-import { GeminiModule } from './gemini/gemini.module';
+/* import { MeasureModule } from './measure/measure.module'; */
+/* import { GeminiModule } from './gemini/gemini.module'; */
+import { Measure } from './measure/entities/measure.entity';
 
 @Module({
   imports: [
@@ -24,10 +23,9 @@ import { GeminiModule } from './gemini/gemini.module';
       migrations: [`${__dirname}/migrations/*{.ts,.js}`],
       migrationsRun: true,
     }),
-    MeasureModule,
-    GeminiModule,
+    TypeOrmModule.forFeature([Measure]),
   ],
   controllers: [AppController],
-  providers: [AppService, AnalyzeService, FileUploadService],
+  providers: [AppService],
 })
 export class AppModule {}
