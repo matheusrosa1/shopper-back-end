@@ -18,7 +18,10 @@ export class MeasureController {
   ) {}
 
   @Post('upload')
-  async uploadMeasure(@Body() data: any) {
+  async uploadMeasure(
+    @Body()
+    data: any,
+  ) {
     return this.uploadMeasureService.processAndSaveMeasure(data);
   }
 
