@@ -16,10 +16,13 @@ export class UploadMeasureService {
   private model: any;
 
   constructor(
-    apiKey: string,
     @InjectRepository(Measure)
     private readonly measureRepository: Repository<Measure>,
   ) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY is not defined in .env');
+    }
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   }
@@ -83,7 +86,7 @@ export class UploadMeasureService {
       const buff = Buffer.from(image, 'base64');
       fs.writeFileSync(filePath, buff);
 
-      const image_url = `http://localhost:5000/uploads/${fileName}`;
+      const image_url = `http://localhost:3001/uploads/${fileName}`;
 
       const newMeasure = this.measureRepository.create({
         customerCode: customer_code,
