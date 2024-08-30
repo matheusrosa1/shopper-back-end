@@ -20,9 +20,20 @@ export class MeasureController {
   @Post('upload')
   async uploadMeasure(
     @Body()
-    data: any,
+    body: {
+      image: string;
+      customer_code: string;
+      measure_datetime: Date;
+      measure_type: 'WATER' | 'GAS';
+    },
   ) {
-    return this.uploadMeasureService.processAndSaveMeasure(data);
+    const { image, customer_code, measure_datetime, measure_type } = body;
+    return this.uploadMeasureService.processAndSaveMeasure(
+      image,
+      customer_code,
+      measure_datetime,
+      measure_type,
+    );
   }
 
   @Patch('confirm')

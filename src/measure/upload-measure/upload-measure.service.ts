@@ -1,111 +1,99 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
-import * as fs from 'fs-extra';
-import * as path from 'path';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { MeasureService } from '../measure.service';
 import { Measure } from '../entities/measure.entity';
-import { Repository, Between } from 'typeorm';
+import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as uuid from 'uuid';
 
 @Injectable()
 export class UploadMeasureService {
-  private genAI: GoogleGenerativeAI;
-  private model: any;
-  private fileManager: GoogleAIFileManager;
+  private readonly fileManager: GoogleAIFileManager;
+  private readonly genAI: GoogleGenerativeAI;
 
   constructor(
+    private readonly measureService: MeasureService,
     @InjectRepository(Measure)
     private readonly measureRepository: Repository<Measure>,
   ) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is not defined in .env');
-    }
-    this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    this.fileManager = new GoogleAIFileManager(apiKey);
+    this.fileManager = new GoogleAIFileManager(process.env.GEMINI_API_KEY);
+    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   }
 
-  async processAndSaveMeasure(data: any): Promise<any> {
-    const { image, customer_code, measure_datetime, measure_type } = data;
-    if (!image || !customer_code || !measure_datetime || !measure_type) {
-      throw new HttpException('Dados inválidos', HttpStatus.BAD_REQUEST);
-    }
-
-    const measureDatetimeObj = new Date(measure_datetime);
-
-    const startOfMonth = new Date(
-      measureDatetimeObj.getFullYear(),
-      measureDatetimeObj.getMonth(),
-      1,
+  async processAndSaveMeasure(
+    base64Image: string,
+    customerCode: string,
+    measureDatetime: Date,
+    measureType: 'WATER' | 'GAS',
+  ): Promise<{
+    measure_value: number;
+    image_url: string;
+    measure_uuid: string;
+  }> {
+    // Verificar se já existe uma leitura no mês para o tipo de medida
+    const existingMeasure = await this.measureService.checkExistingMeasure(
+      customerCode,
+      measureDatetime,
+      measureType,
     );
-    const endOfMonth = new Date(
-      measureDatetimeObj.getFullYear(),
-      measureDatetimeObj.getMonth() + 1,
-      0,
-    );
-
-    const existingMeasure = await this.measureRepository.findOne({
-      where: {
-        customerCode: customer_code,
-        measureType: measure_type,
-        measureDatetime: Between(startOfMonth, endOfMonth),
-      },
-    });
 
     if (existingMeasure) {
       throw new HttpException(
-        'Leitura do mês já realizada',
+        {
+          error_code: 'DOUBLE_REPORT',
+          error_description: 'Leitura do mês já realizada',
+        },
         HttpStatus.CONFLICT,
       );
     }
 
-    // Salvar a imagem temporária na raiz do projeto
-    const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
-    const buffer = Buffer.from(base64Data, 'base64');
-    const tempFilePath = path.join(__dirname, `../../temp_${uuidv4()}.jpg`);
-    await fs.writeFile(tempFilePath, buffer);
+    // Remover o cabeçalho 'data:image/jpeg;base64,' ou similar
+    const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
+    /*     const buffer = Buffer.from(base64Data, 'base64'); */
+    /*   const base64String = buffer.toString('base64');  */ // Convertendo de volta para uma string base64 */
 
-    // Fazer o upload da imagem usando o GoogleAIFileManager
-    const uploadResponse = await this.fileManager.uploadFile(tempFilePath, {
-      mimeType: 'image/jpeg',
-      displayName: `Measure_${customer_code}`,
+    // Fazer o upload da imagem
+    const uploadResponse = await this.fileManager.uploadFile(base64Data, {
+      mimeType: 'image/jpeg', // Ajuste conforme necessário
+      displayName: 'Uploaded Image',
     });
 
-    // Gerar o conteúdo usando o modelo
-    const prompt = 'What was the consumption for the month? Just the number';
-    const fileToGenerativePart = {
-      inlineData: {
-        data: base64Data,
-        mimeType: 'image/jpeg',
+    const fileUri = uploadResponse.file.uri;
+
+    // Integre com a API LLM para extrair o valor da imagem
+    const model = this.genAI.getGenerativeModel({
+      model: 'gemini-1.5-pro',
+    });
+
+    const result = await model.generateContent([
+      {
+        fileData: {
+          mimeType: uploadResponse.file.mimeType,
+          fileUri: fileUri,
+        },
       },
-    };
-    const result = await this.model.generateContent([
-      prompt,
-      fileToGenerativePart,
+      { text: 'Extract the numerical value from this image.' },
     ]);
 
-    const measure_value = +result.response.text();
-    const measure_uuid = uuidv4();
+    const extractedValue = parseInt(result.response.text(), 10);
 
-    // Remover o arquivo temporário
-    /*     await fs.remove(tempFilePath); */
-
-    const image_url = uploadResponse.file.uri;
-
-    // Salvar a medição no banco de dados
+    // Criar a nova medida
     const newMeasure = this.measureRepository.create({
-      customerCode: customer_code,
-      measureDatetime: measure_datetime,
-      measureType: measure_type,
-      measureValue: measure_value,
-      measureUuid: measure_uuid,
-      imageUrl: image_url,
+      customerCode,
+      measureDatetime,
+      measureType,
+      measureValue: extractedValue,
+      imageUrl: fileUri,
+      measureUuid: uuid.v4(),
     });
 
-    await this.measureRepository.save(newMeasure);
+    const savedMeasure = await this.measureRepository.save(newMeasure);
 
-    return { image_url, measure_value, measure_uuid };
+    return {
+      measure_value: savedMeasure.measureValue,
+      image_url: savedMeasure.imageUrl,
+      measure_uuid: savedMeasure.measureUuid,
+    };
   }
 }

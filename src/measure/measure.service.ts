@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { Measure } from './entities/measure.entity';
 
 @Injectable()
@@ -10,6 +10,52 @@ export class MeasureService {
     private readonly measureRepository: Repository<Measure>,
   ) {}
 
+  async checkExistingMeasure(
+    customerCode: string,
+    measureDatetime: Date,
+    measureType: 'WATER' | 'GAS',
+  ): Promise<boolean> {
+    // Verificar se já existe uma medida no mês para o cliente e tipo de medida
+    const measureDatetimeObj = new Date(measureDatetime);
+    const startOfMonth = new Date(
+      measureDatetimeObj.getFullYear(),
+      measureDatetimeObj.getMonth(),
+      1,
+    );
+    const endOfMonth = new Date(
+      measureDatetimeObj.getFullYear(),
+      measureDatetimeObj.getMonth() + 1,
+      0,
+    );
+
+    const existingMeasure = await this.measureRepository.findOne({
+      where: {
+        customerCode,
+        measureDatetime: Between(startOfMonth, endOfMonth),
+        measureType,
+      },
+    });
+
+    return !!existingMeasure; // Retorna true se uma medida já existe, caso contrário false
+  }
+
+  async saveMeasure(data: {
+    customerCode: string;
+    measureDatetime: Date;
+    measureType: 'WATER' | 'GAS';
+    measureValue: number;
+    imageUrl: string;
+  }): Promise<Measure> {
+    const newMeasure = this.measureRepository.create({
+      customerCode: data.customerCode,
+      measureDatetime: data.measureDatetime,
+      measureType: data.measureType,
+      measureValue: data.measureValue,
+      imageUrl: data.imageUrl,
+    });
+
+    return await this.measureRepository.save(newMeasure);
+  }
   async confirmMeasure(
     measureUuid: string,
     confirmedValue: number,
