@@ -28,6 +28,8 @@
 
 ## Iniciar o Projeto
 
+Instalar as dependências: ``ǹpm install``
+
 Configurar o arquivo .env conforme demonstrado no ```.env.example```
 
 Rodar o comando ```docker compose up --build```, o servidor já estará rodando automaticamente na porta 3001.
