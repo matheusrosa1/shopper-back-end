@@ -28,9 +28,9 @@
 
 ## Iniciar o Projeto
 
-Configurar o arquivo .env conforme demonstrado no .env example
+Configurar o arquivo .env conforme demonstrado no ```.env.example```
 
-Rodar o comando docker compose up --build, o servidor já estará rodando automaticamente na porta 3001.
+Rodar o comando ```docker compose up --build```, o servidor já estará rodando automaticamente na porta 3001.
 
 ## Resources
 
