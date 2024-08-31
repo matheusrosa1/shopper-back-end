@@ -32,7 +32,7 @@ Configurar o arquivo .env conforme demonstrado no ```.env.example```
 
 Rodar o comando ```docker compose up --build```, o servidor já estará rodando automaticamente na porta 3001.
 
-### Banco de dados
+## Banco de dados
 
 Ao subir o servidor o banco de dados automaticamente já estará com seeders de exemplo.
 
