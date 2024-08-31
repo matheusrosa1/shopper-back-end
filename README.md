@@ -34,7 +34,7 @@ Rodar o comando ```docker compose up --build```, o servidor já estará rodando 
 
 ## Banco de dados
 
-Ao subir o servidor o banco de dados automaticamente já estará com seeders de exemplo.
+Ao subir o servidor, o banco de dados automaticamente já estará com seeders de exemplo.
 
 ## Resources
 
